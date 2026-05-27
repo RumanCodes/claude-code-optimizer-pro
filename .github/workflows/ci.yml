@@ -30,6 +30,8 @@ jobs:
       - name: Check CLI commands
         run: |
           node bin/cco.js --version
+          node bin/cco.js scan --json
+          node bin/cco.js analyze --json
           node bin/cco.js audit --json
           node bin/cco.js audit --markdown
           node bin/cco.js audit --sarif

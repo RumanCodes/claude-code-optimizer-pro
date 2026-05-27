@@ -30,6 +30,9 @@ cco init
 # Or scaffold with deeper repo analysis
 cco init --analyze
 
+# Review detected context before writing files
+cco init --analyze --review
+
 # Check your existing config for issues
 cco audit
 
@@ -114,11 +117,12 @@ Subagents run in their own conversation — they don't pollute your main session
 
 ```
 Options:
-  --lang <language>     auto | js | ts | python | go  (default: auto)
-  --framework <name>    auto | next | react | express | fastapi | none  (default: auto)
+  --lang <language>     auto | js | ts | php | python | go  (default: auto)
+  --framework <name>    auto | next | react | express | wordpress-plugin | fastapi | none
   --preset <name>       auto | next | react | express | fastapi | npm-package | monorepo
   --monorepo            force monorepo-oriented guidance
   --analyze             scan safe repo files before writing Claude guidance
+  --review              show detected context before writing files
   --force               overwrite existing files
 ```
 
@@ -134,6 +138,24 @@ With `--analyze`, `cco init` also scans safe source/config files to infer:
 - API, component, test, and database folders
 - conventions like Zod validation, Tailwind styling, import aliases, and colocated tests
 - extra scoped command files such as `next-rules.md`, `database-rules.md`, `validation-rules.md`, and `styling-rules.md`
+- WordPress plugin/theme context such as plugin headers, text domains, Composer PSR-4 autoload, hooks, AJAX nonces, capabilities, wpFluent tables, Vue/Vite admin apps, and generated context gaps
+
+When analysis is enabled, extra context files may be generated:
+
+```text
+.claude/context-map.md
+.claude/context-gaps.json
+.claude/summaries/backend.md
+.claude/summaries/frontend.md
+```
+
+### `cco scan`
+Safely scans and classifies repository files without reading secrets or generated folders.
+
+```bash
+cco scan
+cco scan --json
+```
 
 ### `cco analyze`
 Prints the repository analysis without writing files.
@@ -141,9 +163,10 @@ Prints the repository analysis without writing files.
 ```bash
 cco analyze
 cco analyze --json
+cco analyze --cache
 ```
 
-The analyzer skips dependency/build/cache folders, secrets, and files above its size limit.
+The analyzer skips dependency/build/cache folders, secrets, and files above its size limit. `--cache` writes `.cco/cache/analysis.json`.
 
 ### `cco audit`
 Checks your project for:

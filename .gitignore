@@ -17,6 +17,7 @@ out/
 
 # Runtime/cache files
 .cache/
+.cco/
 .tmp/
 tmp/
 

@@ -12,6 +12,7 @@ import { watch } from "../lib/watch.js";
 import { doctor } from "../lib/doctor.js";
 import { explain } from "../lib/explain.js";
 import { analyze } from "../lib/analyze.js";
+import { scanRepository } from "../lib/scanner.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -44,8 +45,25 @@ program
   .option("--preset <name>", "Preset (auto|next|react|express|fastapi|npm-package|monorepo)", "auto")
   .option("--monorepo", "Force monorepo-oriented guidance")
   .option("--analyze", "Analyze repository files before generating Claude Code guidance")
+  .option("--review", "Review detected context before writing files")
   .option("--force", "Overwrite existing files")
   .action(init);
+
+program
+  .command("scan")
+  .description("Safely scan and classify repository files")
+  .option("--json", "Print machine-readable JSON")
+  .option("--max-files <n>", "Maximum files to classify", "400")
+  .action(async (options) => {
+    const result = await scanRepository(process.cwd(), options);
+    if (options.json) console.log(JSON.stringify(result, null, 2));
+    else {
+      console.log(`Scanned ${result.files.length} file(s).`);
+      for (const [role, files] of Object.entries(result.byRole)) {
+        console.log(`${role}: ${files.length}`);
+      }
+    }
+  });
 
 program
   .command("analyze")
@@ -53,6 +71,7 @@ program
   .option("--json", "Print machine-readable JSON")
   .option("--max-files <n>", "Maximum source files to inspect", "80")
   .option("--sample-files <n>", "Maximum source files to read for patterns", "30")
+  .option("--cache", "Write .cco/cache/analysis.json")
   .action(analyze);
 
 program
