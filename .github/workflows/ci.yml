@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Audit Claude Code optimizer config
+        run: node bin/cco.js audit --ci
+
+      - name: Check CLI commands
+        run: |
+          node bin/cco.js --version
+          node bin/cco.js audit --json
+          node bin/cco.js audit --markdown
+          node bin/cco.js audit --sarif
+          node bin/cco.js stats
+          node bin/cco.js watch --once
+          node bin/cco.js explain watch
+
+      - name: Verify npm package contents
+        run: npm pack --dry-run

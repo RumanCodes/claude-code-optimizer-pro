@@ -1,0 +1,17 @@
+{
+  "bash": {
+    "maxOutputLength": 20000
+  },
+  "model": {
+    "default": "claude-sonnet-4-20250514",
+    "explore": "claude-haiku-4-5"
+  },
+  "cache": {
+    "enabled": true,
+    "neverInvalidateTools": true
+  },
+  "_notes": {
+    "maxOutputLength": "Caps bash output — prevents log floods eating tokens",
+    "neverInvalidateTools": "Never add/remove MCP tools mid-session — breaks prompt cache"
+  }
+}

@@ -1,0 +1,69 @@
+# claude-code-optimizer-pro — auto-generated .claudeignore
+# Files listed here are invisible to Claude, saving tokens every session.
+
+# Dependencies
+node_modules/
+.pnp/
+.yarn/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+
+# Caches & generated
+.cache/
+*.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.min.js
+*.min.css
+*.map
+*.d.ts.map
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+lcov.info
+*.lcov
+
+# Version control
+.git/
+.hg/
+.svn/
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# Secrets — never let Claude read these
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+
+# Large data / media
+*.csv
+*.parquet
+*.sql
+*.dump
+*.mp4
+*.mov
+*.zip
+*.tar.gz
