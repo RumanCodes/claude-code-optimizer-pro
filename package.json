@@ -4,6 +4,14 @@
   "description": "Save tokens and speed up Claude Code — scaffold generator with best-practice configs",
   "type": "module",
   "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RumanCodes/claude-code-optimizer-pro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RumanCodes/claude-code-optimizer-pro/issues"
+  },
+  "homepage": "https://github.com/RumanCodes/claude-code-optimizer-pro#readme",
   "files": [
     "bin",
     "lib",
