@@ -26,6 +26,7 @@ Options:
 - `--framework <name>`: `auto`, `next`, `react`, `express`, `fastapi`, or `none`; default `auto`
 - `--preset <name>`: `auto`, `next`, `react`, `express`, `fastapi`, `npm-package`, or `monorepo`; default `auto`
 - `--monorepo`: force monorepo-oriented guidance
+- `--analyze`: scan safe repository files before writing Claude guidance
 - `--force`: overwrite existing generated files
 
 Default detection:
@@ -36,6 +37,16 @@ Default detection:
 - common source/test/docs directories
 - common package scripts for dev, test, lint, format, and build
 
+Deep analysis with `--analyze`:
+
+- Reads safe config files such as package, TypeScript, framework, test, Tailwind, Prisma, Python, and Go config files.
+- Samples source files with safe extensions.
+- Skips dependency, build, cache, VCS, virtualenv, secret, and oversized files.
+- Detects API, component, test, and database paths.
+- Detects framework, test, database, auth, state, styling, and validation libraries.
+- Detects lightweight source conventions such as async/await, Zod usage, import aliases, React functions, and colocated tests.
+- Writes richer `CLAUDE.md` facts and additional scoped command files when relevant.
+
 Expected output files:
 
 - `.claudeignore`
@@ -45,6 +56,7 @@ Expected output files:
 - `.claude/commands/api-rules.md`
 - `.claude/commands/test-rules.md`
 - `.claude/commands/ui-rules.md`
+- additional analyzed command files when `--analyze` detects relevant stack features
 - `.claude/subagents/explore.md`
 - `.claude/subagents/refactor.md`
 
@@ -52,6 +64,27 @@ Non-force behavior:
 
 - Existing files must not be overwritten.
 - Missing files may be created.
+
+### `cco analyze`
+
+Analyzes the repository without writing files.
+
+Options:
+
+- `--json`: print machine-readable JSON
+- `--max-files <n>`: maximum source files to inspect; default `80`
+- `--sample-files <n>`: maximum source files to read for pattern detection; default `30`
+
+Analysis output:
+
+- detected project metadata
+- architecture path groups
+- package scripts and dependencies
+- config files
+- detected library categories
+- lightweight source patterns
+- inferred conventions
+- risks or missing documentation notes
 
 ### `cco audit`
 
@@ -194,6 +227,9 @@ Expected exports:
 - `watch`
 - `runWatchSnapshot`
 - `detectProject`
+- `analyze`
+- `analyzeRepository`
+- `printAnalysis`
 - `explain`
 - `loadConfig`
 - `writeDefaultConfig`
@@ -221,6 +257,7 @@ node bin/cco.js audit
 node bin/cco.js audit --json
 node bin/cco.js audit --markdown
 node bin/cco.js audit --sarif
+node bin/cco.js analyze --json
 node bin/cco.js doctor
 node bin/cco.js explain watch
 node bin/cco.js stats

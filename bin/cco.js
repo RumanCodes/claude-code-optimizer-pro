@@ -11,6 +11,7 @@ import { stats } from "../lib/stats.js";
 import { watch } from "../lib/watch.js";
 import { doctor } from "../lib/doctor.js";
 import { explain } from "../lib/explain.js";
+import { analyze } from "../lib/analyze.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -42,8 +43,17 @@ program
   .option("--framework <name>", "Framework (auto|next|react|express|fastapi|none)", "auto")
   .option("--preset <name>", "Preset (auto|next|react|express|fastapi|npm-package|monorepo)", "auto")
   .option("--monorepo", "Force monorepo-oriented guidance")
+  .option("--analyze", "Analyze repository files before generating Claude Code guidance")
   .option("--force", "Overwrite existing files")
   .action(init);
+
+program
+  .command("analyze")
+  .description("Analyze the repository and report Claude Code project facts")
+  .option("--json", "Print machine-readable JSON")
+  .option("--max-files <n>", "Maximum source files to inspect", "80")
+  .option("--sample-files <n>", "Maximum source files to read for patterns", "30")
+  .action(analyze);
 
 program
   .command("audit")

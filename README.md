@@ -27,6 +27,9 @@ cd my-project
 # Scaffold all optimizer files
 cco init
 
+# Or scaffold with deeper repo analysis
+cco init --analyze
+
 # Check your existing config for issues
 cco audit
 
@@ -115,6 +118,7 @@ Options:
   --framework <name>    auto | next | react | express | fastapi | none  (default: auto)
   --preset <name>       auto | next | react | express | fastapi | npm-package | monorepo
   --monorepo            force monorepo-oriented guidance
+  --analyze             scan safe repo files before writing Claude guidance
   --force               overwrite existing files
 ```
 
@@ -124,6 +128,22 @@ By default, `cco init` detects common project details before writing `CLAUDE.md`
 - package manager
 - common source/test/docs folders
 - package scripts for dev, test, lint, format, and build
+
+With `--analyze`, `cco init` also scans safe source/config files to infer:
+- test, database, auth, state, styling, and validation libraries
+- API, component, test, and database folders
+- conventions like Zod validation, Tailwind styling, import aliases, and colocated tests
+- extra scoped command files such as `next-rules.md`, `database-rules.md`, `validation-rules.md`, and `styling-rules.md`
+
+### `cco analyze`
+Prints the repository analysis without writing files.
+
+```bash
+cco analyze
+cco analyze --json
+```
+
+The analyzer skips dependency/build/cache folders, secrets, and files above its size limit.
 
 ### `cco audit`
 Checks your project for:
