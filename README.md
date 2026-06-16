@@ -1,233 +1,458 @@
 # claude-code-optimizer-pro
 
-> Save 40–70% on Claude Code tokens. Get responses up to 100× faster with prompt caching.
+A production-ready CLI to reduce token usage in Claude Code sessions and stabilize context quality.
 
-A CLI tool that scaffolds all the config files and best-practice patterns needed to run Claude Code efficiently — zero setup friction.
+This repository is actively implementing all major features from `claude-token-optimizer-main` (measure/compress/prune/hooks/diff/update) inside the `cco` CLI flow.
+
+This document reflects the **current implemented behavior in this workspace**.
 
 ---
 
-## Install
+## Version and install
 
 ```bash
-# Global install (recommended)
 npm install -g claude-code-optimizer-pro
-
-# Or use without installing
-npx claude-code-optimizer-pro init
+# or
+npx claude-code-optimizer-pro <command>
 ```
 
+Entry point:
+
+- `cco`
+- alias `claude-optimize`
+
+## Why this tool exists
+
+Claude Code pays context overhead every session:
+
+- `.claudeignore` controls which project files are excluded from auto context reads.
+- `CLAUDE.md` is loaded on each turn and can silently dominate token budget.
+- Settings and path-scoped command files shape how much overhead is paid per request.
+
+This CLI is built around three ideas:
+
+1. generate compact project context (`init`),
+2. continuously audit/repair drift (`audit`, `doctor`, `watch`),
+3. optimize existing `CLAUDE.md` content over time (`measure`, `compress`, `prune`, `diff`).
+
 ---
 
-## Quick Start
+## Quick start
 
 ```bash
-# Navigate to your project
 cd my-project
 
-# Scaffold all optimizer files
+# 1) scaffold baseline files
 cco init
 
-# Or scaffold with deeper repo analysis
-cco init --analyze
-
-# Review detected context before writing files
-cco init --analyze --review
-
-# Check your existing config for issues
+# 2) review current context health
 cco audit
-
-# Apply conservative fixes for common issues
 cco doctor --fix
-
-# See token cost of your CLAUDE.md
 cco stats
+cco measure
 
-# Watch config files and get live optimization feedback
-cco watch
+# 3) reduce noise in CLAUDE.md (if present)
+cco compress
+cco prune --yes
+cco diff
+
+# 4) manage hooks when needed
+cco hooks list
+cco hooks install --all
+cco hooks settings
+
+# 5) keep package and templates fresh
+cco update --content
 ```
 
 ---
 
-## What gets created
+## Feature scope implemented now
 
-```
-your-project/
-├── .claudeignore                   ← blocks noise from Claude's context
-├── CLAUDE.md                       ← lean project guide (<200 lines template)
-├── .claude/
-│   ├── settings.json               ← caps bash output, model config
-│   ├── commands/
-│   │   ├── api-rules.md            ← path-scoped: loads only for src/api/**
-│   │   ├── test-rules.md           ← path-scoped: loads only for *.test.ts
-│   │   └── ui-rules.md             ← path-scoped: loads only for src/ui/**
-│   └── subagents/
-│       ├── explore.md              ← subagent template for reading many files
-│       └── refactor.md             ← subagent template for isolated refactors
-```
+- [x] Core optimizer scaffold and diagnostics (`init`, `scan`, `analyze`, `audit`, `doctor`, `stats`, `watch`, `explain`).
+- [x] Token-optimizer set: `measure`, `compress`, `prune`, `diff`.
+- [x] Hook template lifecycle via `hooks` subcommands.
+- [x] Self- and content-update flow via `update`.
+- [x] Exported API surface updated in `lib/index.js`.
 
-`cco doctor --fix` may also create `.cco.json` for optimizer budgets and audit settings.
+**Current parity caveat**: command output format and some implementation details are intentionally aligned to `cco`’s existing behavior, not necessarily byte-for-byte identical to original token-optimizer output.
 
 ---
 
-## How each file saves tokens
+## Commands in detail
 
-### `.claudeignore`
-Claude reads your entire project tree to understand context. Without this file, it reads `node_modules`, `dist`, `.git`, logs — none of which help it code. This file blocks all that noise.
+Below are the exact commands and current behavior.
 
-**Savings: High** — eliminates thousands of wasted tokens per session.
+### Global flow
 
-### `CLAUDE.md` (lean template)
-The template keeps you under 200 lines with clear sections. Every byte in CLAUDE.md is re-sent to the model on every session. Trimming 100 lines saves tokens every single time.
+#### `cco init`
 
-**Savings: High** — directly proportional to what you trim.
-
-### `.claude/settings.json`
-Sets `bash.maxOutputLength: 20000`. Without this, a single `npm test` run can dump 200k+ characters into context when tests fail verbosely.
-
-**Savings: Medium-High** — critical for projects with verbose test output.
-
-### `.claude/commands/` (path-scoped rules)
-Instead of putting all rules in CLAUDE.md (loaded always), these files load only when Claude is editing matching paths. API rules load when editing `src/api/**`. Test rules load when editing `*.test.ts`. Everything else is invisible.
-
-**Savings: Medium** — proportional to how many irrelevant rules you had in CLAUDE.md.
-
-### `.claude/subagents/` (subagent templates)
-Subagents run in their own conversation — they don't pollute your main session's context. Use them when a task requires reading 5+ files. The subagent accumulates heavy context, returns only a summary.
-
-**Savings: High for large tasks** — keeps main context clean.
-
----
-
-## Session habits (paste into your team wiki)
-
-| Situation | Action |
-|---|---|
-| Same task, conversation getting long | `/compact` |
-| Switching to a completely new task | `/clear` |
-| Check current session cost | `/cost` |
-| Need to read many files | Spawn a subagent |
-| Adding MCP tools | Do it BEFORE the session starts |
-| Running tests | `npm test 2>&1 \| tail -n 100` |
-
----
-
-## Commands
-
-### `cco init`
-
-```
-Options:
-  --lang <language>     auto | js | ts | php | python | go  (default: auto)
-  --framework <name>    auto | next | react | express | wordpress-plugin | fastapi | none
-  --preset <name>       auto | next | react | express | fastapi | npm-package | monorepo
-  --monorepo            force monorepo-oriented guidance
-  --analyze             scan safe repo files before writing Claude guidance
-  --review              show detected context before writing files
-  --force               overwrite existing files
-```
-
-By default, `cco init` detects common project details before writing `CLAUDE.md`:
-- language
-- framework
-- package manager
-- common source/test/docs folders
-- package scripts for dev, test, lint, format, and build
-
-With `--analyze`, `cco init` also scans safe source/config files to infer:
-- test, database, auth, state, styling, and validation libraries
-- API, component, test, and database folders
-- conventions like Zod validation, Tailwind styling, import aliases, and colocated tests
-- extra scoped command files such as `next-rules.md`, `database-rules.md`, `validation-rules.md`, and `styling-rules.md`
-- WordPress plugin/theme context such as plugin headers, text domains, Composer PSR-4 autoload, hooks, AJAX nonces, capabilities, wpFluent tables, Vue/Vite admin apps, and generated context gaps
-
-When analysis is enabled, extra context files may be generated:
-
-```text
-.claude/context-map.md
-.claude/context-gaps.json
-.claude/summaries/backend.md
-.claude/summaries/frontend.md
-```
-
-### `cco scan`
-Safely scans and classifies repository files without reading secrets or generated folders.
-
-```bash
-cco scan
-cco scan --json
-```
-
-### `cco analyze`
-Prints the repository analysis without writing files.
-
-```bash
-cco analyze
-cco analyze --json
-cco analyze --cache
-```
-
-The analyzer skips dependency/build/cache folders, secrets, and files above its size limit. `--cache` writes `.cco/cache/analysis.json`.
-
-### `cco audit`
-Checks your project for:
-- CLAUDE.md over 200 lines
-- CLAUDE.md over 2000 tokens
-- Missing `.claudeignore` entries
-- Uncapped bash output
-- Empty commands directory
+Creates baseline optimization files in the current directory.
 
 Options:
-```
-  --json                print machine-readable JSON
-  --markdown            print a Markdown report
-  --sarif               print a SARIF report for code scanning
-  --ci                  exit with code 1 when issues are found
-```
 
-### `cco doctor`
-Diagnoses the same config as `cco audit`. With `--fix`, it applies conservative repairs:
-- Creates missing optimizer files without overwriting existing files
-- Adds missing critical `.claudeignore` entries
-- Sets `bash.maxOutputLength` to `20000` when missing or too high
-- Cleans the known generated `node_modules` guidance from `CLAUDE.md`
-- Creates `.cco.json` when missing
-- Adds a safe npm `files` whitelist when publishing risk is detected
+- `--lang <language>` (default: `auto`)
+- `--framework <name>` (default: `auto`)
+- `--preset <name>` (default: `auto`)
+- `--monorepo`
+- `--analyze`
+- `--review`
+- `--force`
 
-Options:
-```
-  --fix                 apply conservative fixes
-  --json                print machine-readable JSON
-  --ci                  exit with code 1 when issues remain
-```
+What it writes:
 
-### `cco stats`
-Prints a token cost breakdown of your CLAUDE.md with per-section analysis and daily/monthly cost estimates.
+- `.claudeignore`
+- `CLAUDE.md`
+- `.claude/settings.json`
+- `.claude/commands/api-rules.md`
+- `.claude/commands/test-rules.md`
+- `.claude/commands/ui-rules.md`
+- `.claude/subagents/explore.md`
+- `.claude/subagents/refactor.md`
 
-### `cco watch`
-Runs an immediate optimizer snapshot, then watches Claude Code config files for changes:
+With `--analyze`, it can additionally write richer context files:
+
+- `.cco/context-map.md`
+- `.cco/context-gaps.json`
+- `.claude/summaries/backend.md`
+- `.claude/summaries/frontend.md`
+
+`--force` overwrites existing outputs when explicitly allowed.
+
+---
+
+#### `cco scan`
+
+Non-writing repository scanner.
+
+- Default scan uses safe defaults in `lib/scanner.js`.
+- `--json` prints raw JSON.
+- Use `--max-files` and classifies top-level structure into internal roles.
+
+---
+
+#### `cco analyze`
+
+Runs deep but bounded repository analysis.
+
+- Default classification mode based on extension and source heuristics.
+- `--json`, `--cache`, `--max-files`, `--sample-files`.
+
+Useful for previewing what `cco init --analyze` would encode.
+
+---
+
+#### `cco audit`
+
+Checks existing files and project config for avoidable token costs and risky patterns.
+
+Flags:
+
+- `--json`
+- `--markdown`
+- `--sarif`
+- `--ci`
+
+Checks performed:
+
+- `CLAUDE.md` exists.
+- `CLAUDE.md` line count against `maxClaudeMdLines`.
+- `CLAUDE.md` token estimate against `maxClaudeMdTokens`.
+- presence of heavy/costly patterns in `CLAUDE.md`:
+  - too many code fences,
+  - very long file,
+  - references that should be ignored.
+- `CLAUDE.md` does not keep completed/session sections that should be archived.
+- `.claudeignore` exists and contains critical entries.
+- `.claude/settings.json` is valid and has `bash.maxOutputLength`.
+- `.claude/commands/` exists and has content.
+
+Extra checks added in this branch:
+
+- `.claude/sessions/`
+- `.claude/completions/`
+- `docs/archive/`
+- top-level noise files (`README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `GEMINI.md`, `AGENTS.md`)
+- rule files (`.cursorrules`, `.windsurfrules`, `.clinerules`, `.roomodes`)
+
+When issues exist, actionable text suggests `cco init --force` (legacy-style) and/or doctor fixes.
+
+---
+
+#### `cco doctor`
+
+Runs same checks as `cco audit`, and when `--fix` is set performs conservative auto-repairs.
+
+Flags:
+
+- `--fix`
+- `--json`
+- `--ci`
+
+Fixes currently implemented:
+
+- create `.cco.json` only if missing (`writeDefaultConfig`),
+- append missing critical `.claudeignore` entries,
+- ensure `.claude/settings.json` has safe `bash.maxOutputLength` (defaults to `20000`),
+- sanitize generated `CLAUDE.md` line about node_modules guidance,
+- add a conservative `files` field in `package.json` when missing and safe.
+
+---
+
+#### `cco stats`
+
+Simple token report for current `CLAUDE.md`.
+
+- Shows estimated token load and section-level details.
+- Includes rough cost context for token burn.
+
+---
+
+#### `cco watch`
+
+Runs an immediate optimizer snapshot and optionally keeps watching files.
+
+- `--once` runs one snapshot and exits.
+- `--debounce <ms>` sets fs-watch debounce (default `300`).
+
+Monitors key files:
+
 - `CLAUDE.md`
 - `.claudeignore`
 - `.claude/settings.json`
 - `.claude/commands/`
 - `.claude/subagents/`
 
-Use `cco watch --once` in scripts or CI to run one snapshot without staying attached.
+---
 
-`watch` also performs lightweight risk checks for root-level secrets, generated folders, and large files.
+#### `cco explain [topic]`
 
-### `cco explain`
-Explains why each optimizer part exists:
+Prints concise educational explanations for optimizer concepts:
 
-```bash
-cco explain
-cco explain .claudeignore
-cco explain CLAUDE.md
-cco explain watch
-cco explain doctor
+- `.claudeignore`
+- `CLAUDE.md`
+- `watch`
+- `doctor`
+- etc.
+
+---
+
+### New token-optimizer command set (implemented)
+
+#### `cco measure`
+
+Purpose: estimate how many tokens are currently auto-loadable from docs/context and whether init/compress applies.
+
+Current behavior:
+
+- Scans:
+  - root-level `*.md` and `*.txt`
+  - markdown files under `.claude/`
+  - markdown files under `docs/`
+- Applies `.claudeignore` pattern filtering.
+- Computes token estimates via `estimateTokens()`.
+- Sorts files by token contribution desc.
+
+Logic:
+
+- If `CLAUDE.md` is missing → treats as uninitialized and suggests `cco init`.
+- If initialized → compares against configured budget and suggests compression when needed.
+
+Output includes:
+
+- auto-loadable file list with per-file tokens,
+- total token baseline,
+- post-init estimate for not-yet-initialized projects,
+- actionable next step.
+
+---
+
+#### `cco compress`
+
+Purpose: compact `CLAUDE.md` with deterministic low-risk rules.
+
+Behavior:
+
+- validates `CLAUDE.md` exists; if not, exits with guidance to `cco init`.
+- calculates before/after token estimates.
+- operations:
+  - collapse repeated blank-line groups (`\n{3,}` → `\n\n`),
+  - shorten code-fence labels (`javascript`, `typescript`, `python`, `ruby`, `golang`, `shell`, `bash`, `dockerfile`),
+  - truncate long list blocks.
+- default list truncation: keep 5 items, aggressive mode: keep 3.
+- `--dry-run` prints report only.
+- default creates `CLAUDE.md.bak`; disable with `--no-backup`.
+- asks for confirmation `Apply changes? [y/N]` unless no-op.
+
+Output:
+
+- before tokens,
+- after tokens,
+- `%` reduction,
+- applied change list.
+
+Flags:
+
+- `--dry-run`
+- `--aggressive`
+- `--backup` (default on)
+- `--no-backup`
+
+---
+
+#### `cco prune`
+
+Purpose: remove stale sections and optionally archive them.
+
+Detection logic:
+
+- heading beginning with `completed`, `done`, or starting `✓` → archived to `.claude/completions/`.
+- heading matching `YYYY-MM-DD*` → archived to `.claude/sessions/archive/`.
+- empty sections at level ≥ 2 (no content, no child section) → deleted.
+
+Flow:
+
+- scans `CLAUDE.md` and builds section list.
+- interactive apply-by-section flow unless `--yes`.
+- `--dry-run` only prints targets.
+- default creates `CLAUDE.md.bak` before write.
+- archived sections are written as:
+  - `.claude/completions/<YYYY-MM-DD>-pruned-<slug>.md`
+  - `.claude/sessions/archive/<YYYY-MM-DD>-pruned-<slug>.md`
+- final file is rewritten and cleaned-up for excessive blank lines.
+- prints cumulative token savings and final token delta.
+
+Flags:
+
+- `--yes`
+- `--dry-run`
+- `--backup` (default on)
+- `--no-backup`
+
+---
+
+#### `cco diff`
+
+Purpose: compare current file content with `.bak` backup.
+
+- default file: `CLAUDE.md`
+- `--file <path>` compare any file with `<path>.bak`
+- if backup missing, prints instructions to run `cco compress` or `cco prune` first.
+- reports:
+  - before/after token totals,
+  - saved/added tokens and percent,
+  - line count diff.
+
+---
+
+#### `cco hooks`
+
+Hook lifecycle management.
+
+Subcommands:
+
+- `cco hooks list`
+- `cco hooks install <name>`
+- `cco hooks install --all`
+- `cco hooks remove <name> [-y]`
+- `cco hooks status`
+- `cco hooks settings`
+
+Template source:
+
+- `templates/hooks/*.sh`
+
+Parsing:
+
+- reads script header metadata:
+  - `# EVENT:`
+  - `# DESCRIPTION:`
+
+Install behavior:
+
+- copies to `.claude/hooks/` in repo,
+- sets executable bit (`0755`).
+
+Status:
+
+- installed hooks include file modification age (minutes since last change).
+
+Settings output:
+
+- `cco hooks settings` prints JSON in the shape:
+
+```json
+{
+  "hooks": {
+    "<event>": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash .claude/hooks/<hook-file>.sh" }
+        ]
+      }
+    ]
+  }
+}
 ```
 
+This output is intended to be merged into `~/.claude/settings.json`.
+
+---
+
+#### `cco update`
+
+Two modes:
+
+- `cco update`: version update
+  - checks npm for latest package version,
+  - if already current → prints up-to-date,
+  - if update needed and package is global install → runs `npm install -g claude-code-optimizer-pro@<latest>`,
+  - if not global → prints install command.
+
+- `cco update --content`: project refresh
+  - runs `doctor({ fix: true })`,
+  - refreshes installed hook scripts from bundled templates,
+  - prints concise action report.
+
+---
+
+## File behavior and side effects
+
+### `CLAUDE.md`
+
+- central always-loaded instruction file.
+- target budgets derive from `.cco.json`:
+  - `maxClaudeMdLines` (default `200`)
+  - `maxClaudeMdTokens` (default `2000`)
+  - `targetClaudeMdTokens` (default `1500`)
+- touched by:
+  - `init`, `doctor`, `compress`, `prune`.
+
+### `.claudeignore`
+
+- excludes noise from auto-load and scans.
+- updated by:
+  - `init`
+  - `doctor --fix`
+
+Critical entries currently tracked by this workspace:
+
+- `node_modules/`, `dist/`, `.git/`, `*.log`, `.env`
+- plus stricter/extended entries in `doctor` default fix path:
+  - `.claude/sessions/**`, `.claude/completions/**`, `docs/archive/**`,
+  - `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `GEMINI.md`, `AGENTS.md`,
+  - `.cursorrules`, `.windsurfrules`, `.clinerules`, `.roomodes`.
+
+### `.claude/settings.json`
+
+- created/updated by `init` and repaired by `doctor --fix`.
+- `bash.maxOutputLength` capped to `20000` when missing or too high.
+
 ### `.cco.json`
-Optional project-level optimizer config:
+
+Config file for optimizer thresholds.
+
+Default shape:
 
 ```json
 {
@@ -243,20 +468,42 @@ Optional project-level optimizer config:
 
 ---
 
-## Why prompt caching matters
+## Internal token estimates
 
-Claude's API caches stable prefixes (system prompt + tools + conversation history). When a cache hit occurs:
-- Input tokens are **~10× cheaper**
-- Response starts **significantly faster** (no re-processing)
+Token estimation uses `lib/token.js` backed by `@anthropic-ai/tokenizer`.
 
-What breaks the cache:
-- Changing the tool set mid-session
-- Modifying CLAUDE.md mid-session
-- Starting a new conversation without `/compact`
-
-This tool helps you protect the cache by keeping your config stable and your instructions out of places they don't belong.
+- closer to real Claude tokenization than heuristic word-count estimates,
+- used by:
+  - `cco measure`
+  - `cco compress`
+  - `cco prune`
+  - `cco diff`
+  - `cco stats`
+  - `cco watch`
+  - `cco audit`
 
 ---
+
+## Current implementation notes
+
+- `hooks` commands rely on shell templates existing in `templates/hooks`.
+- `update --content` refreshes installed hooks but does not yet reproduce every legacy content section-append behavior.
+- `measure` in this branch uses Pro scanning/token logic (project files + config target) rather than the CTO synthetic post-init file model.
+- this README intentionally reflects behavior as implemented now, not theoretical parity.
+
+If you need a strict parity mode, we can document or implement:
+
+1. exact legacy `measure` after-init simulation model,
+2. section-template append updates on `update --content`,
+3. final output text/formats matching original CTO CLI.
+
+---
+
+## Contributing and tests
+
+This repo includes test scaffolding and additional new tests for ignore utils and optimizer commands.
+
+(Execute tests locally only if needed for your branch workflow.)
 
 ## License
 

@@ -41,3 +41,21 @@ test("custom .cco.json budgets affect audit", async () => {
     await fs.remove(dir);
   }
 });
+
+test("invalid .cco.json reports a clear audit issue", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "cco-bad-config-"));
+  const originalCwd = process.cwd();
+  try {
+    process.chdir(dir);
+    await fs.writeFile(path.join(dir, ".cco.json"), '{ "maxClaudeMdLines": 10 ');
+    await fs.writeFile(path.join(dir, "CLAUDE.md"), "# test\n");
+    const result = await collectAudit(dir);
+    assert.equal(
+      result.issues.some((issue) => issue.includes("Invalid .cco.json")),
+      true
+    );
+  } finally {
+    process.chdir(originalCwd);
+    await fs.remove(dir);
+  }
+});
