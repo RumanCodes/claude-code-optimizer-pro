@@ -2,7 +2,7 @@
 
 A production-ready CLI to reduce token usage in Claude Code sessions and stabilize context quality.
 
-This repository is actively implementing all major features from `claude-token-optimizer-main` (measure/compress/prune/hooks/diff/update) inside the `cco` CLI flow.
+This repository implements token-optimization capabilities (measure/compress/prune/hooks/diff/update) directly inside the `cco` CLI flow, aligned with the behavior of the `claude-code-optimizer-pro` project goals.
 
 This document reflects the **current implemented behavior in this workspace**.
 

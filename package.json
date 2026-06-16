@@ -1,6 +1,6 @@
 {
   "name": "claude-code-optimizer-pro",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "Save tokens and speed up Claude Code — scaffold generator with best-practice configs",
   "type": "module",
   "main": "lib/index.js",
